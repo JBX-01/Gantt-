@@ -44,6 +44,9 @@ if st.sidebar.button("Ajouter la phase"):
         )
         st.sidebar.success(f"La phase '{phase_name}' a été ajoutée.")
 
+# Trier les données par date de début
+st.session_state["gantt_data"] = st.session_state["gantt_data"].sort_values(by="Début").reset_index(drop=True)
+
 # Afficher les données ajoutées
 st.subheader("Données du Projet")
 st.dataframe(st.session_state["gantt_data"])
@@ -67,6 +70,7 @@ if not st.session_state["gantt_data"].empty:
     # Configuration des axes
     ax.set_yticks(range(len(phases)))
     ax.set_yticklabels(phases)
+    ax.invert_yaxis()  # Inverser l'axe pour avoir la première phase en haut
     ax.xaxis_date()  # Convertir l'axe des x en dates
     ax.set_xlabel("Dates")
     ax.set_ylabel("Phases")
