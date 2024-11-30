@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
+from matplotlib.dates import date2num
 from datetime import datetime, timedelta
 
 # Configuration de la page
@@ -30,16 +30,19 @@ end_date = st.sidebar.date_input("Date de fin", value=datetime.now() + timedelta
 progress = st.sidebar.slider("Avancement (%)", min_value=0, max_value=100, step=1)
 
 if st.sidebar.button("Ajouter la phase"):
-    new_data = {
-        "Phase": phase_name,
-        "Début": pd.to_datetime(start_date),
-        "Fin": pd.to_datetime(end_date),
-        "Avancement (%)": progress,
-    }
-    st.session_state["gantt_data"] = pd.concat(
-        [st.session_state["gantt_data"], pd.DataFrame([new_data])], ignore_index=True
-    )
-    st.sidebar.success(f"La phase '{phase_name}' a été ajoutée.")
+    if start_date > end_date:
+        st.sidebar.error("La date de début doit être antérieure à la date de fin.")
+    else:
+        new_data = {
+            "Phase": phase_name,
+            "Début": pd.to_datetime(start_date),
+            "Fin": pd.to_datetime(end_date),
+            "Avancement (%)": progress,
+        }
+        st.session_state["gantt_data"] = pd.concat(
+            [st.session_state["gantt_data"], pd.DataFrame([new_data])], ignore_index=True
+        )
+        st.sidebar.success(f"La phase '{phase_name}' a été ajoutée.")
 
 # Afficher les données ajoutées
 st.subheader("Données du Projet")
@@ -48,24 +51,29 @@ st.dataframe(st.session_state["gantt_data"])
 # Créer le diagramme de Gantt
 st.subheader("Diagramme de Gantt")
 if not st.session_state["gantt_data"].empty:
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=(12, 6))
 
-    for i, row in st.session_state["gantt_data"].iterrows():
-        color = get_color(row["Avancement (%)"])
-        ax.barh(
-            row["Phase"],
-            (row["Fin"] - row["Début"]).days,
-            left=(row["Début"] - st.session_state["gantt_data"]["Début"].min()).days,
-            color=color,
-            edgecolor="black",
-        )
+    # Préparation des données
+    phases = st.session_state["gantt_data"]["Phase"]
+    start_dates = date2num(st.session_state["gantt_data"]["Début"])
+    end_dates = date2num(st.session_state["gantt_data"]["Fin"])
+    durations = end_dates - start_dates
+    colors = [get_color(p) for p in st.session_state["gantt_data"]["Avancement (%)"]]
+
+    # Création des barres
+    for i, (phase, start, duration, color) in enumerate(zip(phases, start_dates, durations, colors)):
+        ax.barh(i, duration, left=start, color=color, edgecolor="black", height=0.5)
 
     # Configuration des axes
-    ax.set_xlabel("Jours")
+    ax.set_yticks(range(len(phases)))
+    ax.set_yticklabels(phases)
+    ax.xaxis_date()  # Convertir l'axe des x en dates
+    ax.set_xlabel("Dates")
     ax.set_ylabel("Phases")
     ax.set_title("Diagramme de Gantt")
-    ax.xaxis.set_major_locator(mdates.DayLocator())
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%d-%b"))
+
+    # Améliorer le format des dates
+    fig.autofmt_xdate()
 
     # Afficher le graphique
     st.pyplot(fig)
